@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <syslog.h>
 
 int check_credentials(char *user, char *pass) {
   FILE *file;
@@ -16,7 +17,7 @@ int check_credentials(char *user, char *pass) {
   // check if it is present in any ftpusers line
   file = fopen(path, "r");
   if (file == NULL) {
-    fprintf(stderr, "Error: no se pudo abrir el archivo de usuarios.\n");
+    syslog(LOG_ERR, "Error: no se pudo abrir el archivo de usuarios.");
     return -1;
   }
 

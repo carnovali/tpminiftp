@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>   // for pid_t
+#include <syslog.h>
 
 #include "signals.h"
 #include "session.h"    // for current_sess
@@ -18,16 +19,15 @@ static void handle_sigint(int sig) {
 
 
   if (in_handler) {
-    fprintf(stderr, "SIGINT handler reentered!\n");
+    syslog(LOG_WARNING, "SIGINT handler reentered!");
     return; // Avoid running handler twice concurrently
   }
   in_handler = 1;
 
   static int sigint_count = 0;
-  fprintf(stderr, "SIGINT handler called (count = %d) in PID %d\n", ++sigint_count, getpid());
+  syslog(LOG_INFO, "SIGINT handler called (count = %d) in PID %d", ++sigint_count, getpid());
 
-  printf("[+] SIGINT received. Shutting down...\n");
-  fflush(stdout);
+  syslog(LOG_INFO, "[+] SIGINT received. Shutting down...");
 
   // Close listening socket
   if (server_socket >= 0) {
@@ -41,7 +41,7 @@ static void handle_sigint(int sig) {
   sigemptyset(&blockset);
   sigaddset(&blockset, SIGINT);
   if (sigprocmask(SIG_BLOCK, &blockset, &oldset) < 0) {
-    perror("sigprocmask");
+    syslog(LOG_ERR, "sigprocmask: %m");
   }
 
   // Restore previous signal mask (optional here since we're exiting)
@@ -57,12 +57,12 @@ static void handle_sigterm(int sig) {
 
   static volatile sig_atomic_t in_handler = 0;
   if (in_handler) {
-    fprintf(stderr, "SIGTERM handler reentered!\n");
+    syslog(LOG_WARNING, "SIGTERM handler reentered!");
     return;
   }
   in_handler = 1;
 
-  fprintf(stderr, "[+] SIGTERM received. Shutting down (PID %d)...\n", getpid());
+  syslog(LOG_INFO, "[+] SIGTERM received. Shutting down (PID %d)...", getpid());
 
   // Close listening socket if open
   if (server_socket >= 0) {
@@ -76,7 +76,7 @@ static void handle_sigterm(int sig) {
 void setup_signals(void) {
   struct sigaction sa;
 
-  printf("[DEBUG] Setting up signal handlers in PID %d\n", getpid());
+  syslog(LOG_DEBUG, "Setting up signal handlers in PID %d", getpid());
 
   // Setup SIGINT and SIGTERM for parent
 
@@ -89,16 +89,16 @@ void setup_signals(void) {
 
   // Handle SIGINT
   if (sigaction(SIGINT, &sa, NULL) == -1) {
-    perror("sigaction SIGINT");
+    syslog(LOG_ERR, "sigaction SIGINT: %m");
     exit(EXIT_FAILURE);
   }
-  printf("[DEBUG] SIGINT handler installed in PID %d\n", getpid());
+  syslog(LOG_DEBUG, "SIGINT handler installed in PID %d", getpid());
 
   // Handle SIGTERM, same mask and flags, but different handler
   sa.sa_handler = handle_sigterm;
 
   if (sigaction(SIGTERM, &sa, NULL) == -1) {
-    perror("sigaction SIGTERM");
+    syslog(LOG_ERR, "sigaction SIGTERM: %m");
     exit(EXIT_FAILURE);
   }
 }

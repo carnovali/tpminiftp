@@ -7,12 +7,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <syslog.h>
 
 void close_fd(int fd, const char *label) {
 
   if (close(fd) < 0) {
-    fprintf(stderr, "Error closing %s: ", label);
-    perror(NULL);
+    syslog(LOG_ERR, "Error closing %s: %m", label);
   }
 }
 
@@ -23,7 +23,7 @@ ssize_t safe_dprintf(int fd, const char *format, ...) {
   va_end(args);
 
   if (ret < 0) {
-    perror("dprintf error: ");
+    syslog(LOG_ERR, "dprintf error: %m");
   }
   return ret;
 }
